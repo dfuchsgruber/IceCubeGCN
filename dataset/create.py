@@ -5,7 +5,7 @@ from icecube.tableio import I3TableWriter
 from icecube.hdfwriter import I3HDFTableService
 from glob import glob
 import sys
-import tables
+#import tables
 import numpy as np
 import pickle
 from sklearn.metrics import pairwise_distances
@@ -123,13 +123,15 @@ def get_events_from_frame(frame, charge_threshold=0.5, time_scale=1.0, charge_sc
 
     return features, vertices, np.array(omkeys)
 
-def process_frame(frame, charge_scale=1.0, time_scale=1e-3):
+def process_frame(frame, gcdfile, charge_scale=1.0, time_scale=1e-3):
     """ Processes a frame to create an event graph and metadata out of it.
     
     Parameters:
     -----------
-    frame : ?
+    frame : I3Frame
         The data frame to extract an event graph with features from.
+    gcd_file : str
+        Path to the gcd file.
     charge_scale : float
         The normalization constant for charge.
     time_scale : float
@@ -138,23 +140,13 @@ def process_frame(frame, charge_scale=1.0, time_scale=1e-3):
 
     ### Meta data of the event for analysis of the classifier and creation of ground truth
     nu = dataclasses.get_most_energetic_neutrino(frame['I3MCTree'])
+    if nu is None: return False
 
     # Obtain the PDG Encoding for ground truth
     frame['PDGEncoding'] = dataclasses.I3Double(nu.pdg_encoding)
     frame['InteractionType'] = dataclasses.I3Double(frame['I3MCWeightDict']['InteractionType'])
-    frame['NeutrinoEnergy'] = dataclasses.I3Double(frame['trueNeutrino'].energy)
-    # Some rare events do not produce a cascade
-    try:
-        frame['CascadeEnergy'] = dataclasses.I3Double(frame['trueCascade'].energy)
-    except:
-        frame['CascadeEnergy'] = dataclasses.I3Double(np.nan)
-    try:
-        # Appearently also frames with no primary muon contain this field, so to distinguish try to access it (which should throw an exception)
-        frame['MuonEnergy'] = dataclasses.I3Double(frame['trueMuon'].energy)
-        frame['TrackLength'] = dataclasses.I3Double(frame['trueMuon'].length)
-    except:
-        frame['MuonEnergy'] = dataclasses.I3Double(np.nan)
-        frame['TrackLength'] = dataclasses.I3Double(np.nan)
+    frame['NeutrinoEnergy'] = dataclasses.I3Double(nu.energy)
+
     frame['RunID'] = icetray.I3Int(frame['I3EventHeader'].run_id)
     frame['EventID'] = icetray.I3Int(frame['I3EventHeader'].event_id)
     frame['PrimaryEnergy'] = dataclasses.I3Double(nu.energy)
@@ -198,23 +190,12 @@ def process_frame(frame, charge_scale=1.0, time_scale=1e-3):
     frame['PrimaryAzimuth'] = dataclasses.I3Double(nu.dir.azimuth)
     frame['PrimaryZenith'] = dataclasses.I3Double(nu.dir.zenith)
 
-    ### Compute possible reco inputs that apply to entire event sets
-    track_reco = frame['IC86_Dunkman_L6_PegLeg_MultiNest8D_Track']
-    frame['RecoX'] = dataclasses.I3Double((track_reco.pos.x - C_mean[0]) / C_std[0])
-    frame['RecoY'] = dataclasses.I3Double((track_reco.pos.y - C_mean[1]) / C_std[1])
-    frame['RecoZ'] = dataclasses.I3Double((track_reco.pos.z - C_mean[2]) / C_std[2])
-    frame['COGCenteredRecoX'] = dataclasses.I3Double((track_reco.pos.x - C_mean_cog[0]) / C_std_cog[0])
-    frame['COGCenteredRecoY'] = dataclasses.I3Double((track_reco.pos.y - C_mean_cog[1]) / C_std_cog[1])
-    frame['COGCenteredRecoZ'] = dataclasses.I3Double((track_reco.pos.z - C_mean_cog[2]) / C_std_cog[2])
-    frame['RecoAzimuth'] = dataclasses.I3Double(track_reco.dir.azimuth)
-    frame['RecoZenith'] = dataclasses.I3Double(track_reco.dir.zenith)
-
     ### Apply labeling
-    classify_wrapper(p_frame, None, gcdfile=None)
+    classify_wrapper(frame, None, gcdfile=gcdfile)
     return True
 
 
-def create_dataset(outfile, infiles):
+def create_dataset(outfile, infiles, gcdfile):
     """
     Creates a dataset in hdf5 format.
 
@@ -222,18 +203,19 @@ def create_dataset(outfile, infiles):
     -----------
     outfile : str
         Path to the hdf5 file.
-    paths : dict
+    paths : list
         A list of intput i3 files.
+    gcdfile : str
+        Path to a gcd file.
     """
     infiles = infiles
     tray = I3Tray()
     tray.AddModule('I3Reader',
                 FilenameList = infiles)
-    tray.AddModule(process_frame, 'process_frame')
+    tray.AddModule(lambda frame: process_frame(frame, gcdfile), 'process_frame')
     tray.AddModule(I3TableWriter, 'I3TableWriter', keys = vertex_features + [
         # Meta data
         'PDGEncoding', 'InteractionType', 'NeutrinoEnergy', 
-        'CascadeEnergy', 'MuonEnergy', 'TrackLength'
         'RunID', 'EventID',
         # Lookups
         'NumberVertices',
@@ -258,4 +240,4 @@ def create_dataset(outfile, infiles):
     tray.Finish()
 
 if __name__ == '__main__':
-    create_dataset(sys.argv[1], sys.argv[2])
+    create_dataset(sys.argv[2], [sys.argv[1]], sys.argv[3])
