@@ -58,7 +58,7 @@ def normalize_coordinates(coordinates, weights=None, scale=coordinate_scale, cop
     return coordinates, mean.flatten(), scale
 
 
-def get_events_from_frame(frame, charge_threshold=0.5, time_scale=1.0, charge_scale=1.0, pulses_key=):
+def get_events_from_frame(frame, charge_threshold=0.5, time_scale=1.0, charge_scale=1.0, pulses_key='InIceDSTPulses'):
     """ Extracts data (charge and time of first arrival) as well as their positions from a frame.
     
     Parameters:
@@ -71,6 +71,8 @@ def get_events_from_frame(frame, charge_threshold=0.5, time_scale=1.0, charge_sc
         The normalization constant for charge.
     time_scale : float
         The normalization constant for time.
+    pulses_key : str
+        The key for the pulse series in the I3 file.
     
     Returns:
     --------
@@ -82,7 +84,7 @@ def get_events_from_frame(frame, charge_threshold=0.5, time_scale=1.0, charge_sc
     omkeys : ndarray, shape [N, 3]
         Omkeys for the doms that were active during this event.
     """
-    x = frame['InIceDSTPulses']
+    x = frame[pulses_key]
     hits = x.apply(frame)
 
     features = {feature : [] for feature in vertex_features}
