@@ -1,3 +1,4 @@
+from icecube.weighting import get_weighted_primary
 from icecube import icetray, dataclasses, dataio, phys_services
 from I3Tray import I3Tray
 from icecube.hdfwriter import I3HDFWriter
@@ -123,7 +124,7 @@ def get_events_from_frame(frame, charge_threshold=0.5, time_scale=1.0, charge_sc
 
     return features, vertices, np.array(omkeys)
 
-def process_frame(frame, gcdfile, charge_scale=1.0, time_scale=1e-3):
+def process_frame(frame, gcdfile='/cvmfs/icecube.opensciencegrid.org/data/GCD/GeoCalibDetectorStatus_2013.56429_V0.i3.gz', charge_scale=1.0, time_scale=1e-3):
     """ Processes a frame to create an event graph and metadata out of it.
     
     Parameters:
@@ -139,17 +140,18 @@ def process_frame(frame, gcdfile, charge_scale=1.0, time_scale=1e-3):
     """
 
     ### Meta data of the event for analysis of the classifier and creation of ground truth
-    nu = dataclasses.get_most_energetic_neutrino(frame['I3MCTree'])
-    if nu is None: return False
+    primary = dataclasses.get_most_energetic_neutrino(frame['I3MCTree'])
+    if primary is None:
+        get_weighted_primary(frame, MCPrimary='MCPrimary')
+        primary = frame['MCPrimary']
 
     # Obtain the PDG Encoding for ground truth
-    frame['PDGEncoding'] = dataclasses.I3Double(nu.pdg_encoding)
-    frame['InteractionType'] = dataclasses.I3Double(frame['I3MCWeightDict']['InteractionType'])
-    frame['NeutrinoEnergy'] = dataclasses.I3Double(nu.energy)
+    #frame['PDGEncoding'] = dataclasses.I3Double(primary.pdg_encoding)
+    #frame['InteractionType'] = dataclasses.I3Double(frame['I3MCWeightDict']['InteractionType'])
 
     frame['RunID'] = icetray.I3Int(frame['I3EventHeader'].run_id)
     frame['EventID'] = icetray.I3Int(frame['I3EventHeader'].event_id)
-    frame['PrimaryEnergy'] = dataclasses.I3Double(nu.energy)
+    frame['PrimaryEnergy'] = dataclasses.I3Double(primary.energy)
 
     ### Create features for each event 
     features, coordinates, _ = get_events_from_frame(frame, charge_scale=charge_scale, time_scale=time_scale)
@@ -173,29 +175,29 @@ def process_frame(frame, gcdfile, charge_scale=1.0, time_scale=1e-3):
     frame['COGCenteredVertexZ'] = dataclasses.I3VectorFloat(C_cog[:, 2])
 
     ### Output centering and true debug information
-    frame['PrimaryXOriginal'] = dataclasses.I3Double(nu.pos.x)
-    frame['PrimaryYOriginal'] = dataclasses.I3Double(nu.pos.y)
-    frame['PrimaryZOriginal'] = dataclasses.I3Double(nu.pos.z)
+    frame['PrimaryXOriginal'] = dataclasses.I3Double(primary.pos.x)
+    frame['PrimaryYOriginal'] = dataclasses.I3Double(primary.pos.y)
+    frame['PrimaryZOriginal'] = dataclasses.I3Double(primary.pos.z)
     frame['CMeans'] = dataclasses.I3VectorFloat(C_mean)
     frame['COGCenteredCMeans'] = dataclasses.I3VectorFloat(C_mean_cog)
 
     ### Compute targets for possible auxilliary tasks, i.e. position and direction of the interaction
-    frame['PrimaryX'] = dataclasses.I3Double((nu.pos.x - C_mean[0]) / C_std[0])
-    frame['PrimaryY'] = dataclasses.I3Double((nu.pos.y - C_mean[1]) / C_std[1])
-    frame['PrimaryZ'] = dataclasses.I3Double((nu.pos.z - C_mean[2]) / C_std[2])
+    frame['PrimaryX'] = dataclasses.I3Double((primary.pos.x - C_mean[0]) / C_std[0])
+    frame['PrimaryY'] = dataclasses.I3Double((primary.pos.y - C_mean[1]) / C_std[1])
+    frame['PrimaryZ'] = dataclasses.I3Double((primary.pos.z - C_mean[2]) / C_std[2])
 
-    frame['COGCenteredPrimaryX'] = dataclasses.I3Double((nu.pos.x - C_mean_cog[0]) / C_std_cog[0])
-    frame['COGCenteredPrimaryY'] = dataclasses.I3Double((nu.pos.y - C_mean_cog[1]) / C_std_cog[1])
-    frame['COGCenteredPrimaryZ'] = dataclasses.I3Double((nu.pos.z - C_mean_cog[2]) / C_std_cog[2])
-    frame['PrimaryAzimuth'] = dataclasses.I3Double(nu.dir.azimuth)
-    frame['PrimaryZenith'] = dataclasses.I3Double(nu.dir.zenith)
+    frame['COGCenteredPrimaryX'] = dataclasses.I3Double((primary.pos.x - C_mean_cog[0]) / C_std_cog[0])
+    frame['COGCenteredPrimaryY'] = dataclasses.I3Double((primary.pos.y - C_mean_cog[1]) / C_std_cog[1])
+    frame['COGCenteredPrimaryZ'] = dataclasses.I3Double((primary.pos.z - C_mean_cog[2]) / C_std_cog[2])
+    frame['PrimaryAzimuth'] = dataclasses.I3Double(primary.dir.azimuth)
+    frame['PrimaryZenith'] = dataclasses.I3Double(primary.dir.zenith)
 
     ### Apply labeling
     classify_wrapper(frame, None, gcdfile=gcdfile)
     return True
 
 
-def create_dataset(outfile, infiles, gcdfile):
+def create_dataset(outfile, infiles, gcdfile='/cvmfs/icecube.opensciencegrid.org/data/GCD/GeoCalibDetectorStatus_2013.56429_V0.i3.gz'):
     """
     Creates a dataset in hdf5 format.
 
@@ -212,10 +214,10 @@ def create_dataset(outfile, infiles, gcdfile):
     tray = I3Tray()
     tray.AddModule('I3Reader',
                 FilenameList = infiles)
-    tray.AddModule(lambda frame: process_frame(frame, gcdfile), 'process_frame')
+    tray.AddModule(lambda frame: process_frame(frame, gcdfile=gcdfile), 'process_frame')
     tray.AddModule(I3TableWriter, 'I3TableWriter', keys = vertex_features + [
         # Meta data
-        'PDGEncoding', 'InteractionType', 'NeutrinoEnergy', 
+        #'PDGEncoding', 'InteractionType', 
         'RunID', 'EventID',
         # Lookups
         'NumberVertices',
@@ -240,4 +242,23 @@ def create_dataset(outfile, infiles, gcdfile):
     tray.Finish()
 
 if __name__ == '__main__':
-    create_dataset(sys.argv[2], [sys.argv[1]], sys.argv[3])
+    filepaths = []
+    for path in ('/data/sim/IceCube/2012/filtered/level2/CORSIKA-in-ice/11499/00000-00999/*',
+        '/data/sim/IceCube/2012/filtered/level2/CORSIKA-in-ice/11362/01000-01999/*',
+        '/data/sim/IceCube/2012/filtered/level2/CORSIKA-in-ice/11362/00000-00999/*',
+        '/data/ana/Cscd/StartingEvents/NuGen_new/NuTau/medium_energy/IC86_flasher_p1=0.3_p2=0.0/l2/1/*',
+        '/data/ana/Cscd/StartingEvents/NuGen_new/NuE/low_energy/IC86_flasher_p1=0.3_p2=0.0/l2/1/*',
+        '/data/ana/Cscd/StartingEvents/NuGen_new/NuMu/low_energy/IC86_flasher_p1=0.3_p2=0.0/l2/1/*',
+        '/data/ana/Cscd/StartingEvents/NuGen_new/NuMu/low_energy/IC86_flasher_p1=0.3_p2=0.0/l2/2/*',
+        '/data/ana/Cscd/StartingEvents/NuGen_new/NuTau/high_energy/IC86_flasher_p1=0.3_p2=0.0/l2/1/*',
+        '/data/ana/Cscd/StartingEvents/NuGen_new/NuE/high_energy/IC86_flasher_p1=0.3_p2=0.0/l2/1/*',
+        '/data/ana/Cscd/StartingEvents/NuGen_new/NuMu/high_energy/IC86_flasher_p1=0.3_p2=0.0/l2/1/*',
+        '/data/ana/Cscd/StartingEvents/NuGen_new/NuMu/medium_energy/IC86_flasher_p1=0.3_p2=0.0/l2/1/*',
+        '/data/ana/Cscd/StartingEvents/NuGen_new/NuMu/medium_energy/IC86_flasher_p1=0.3_p2=0.0/l2/2/*',
+        '/data/ana/Cscd/StartingEvents/NuGen_new/NuE/medium_energy/IC86_flasher_p1=0.3_p2=0.0/l2/1/*',
+        '/data/ana/Cscd/StartingEvents/NuGen_new/NuE/medium_energy/IC86_flasher_p1=0.3_p2=0.0/l2/2/*',
+        '/data/ana/Cscd/StartingEvents/NuGen_new/NuMu/low_energy/IC86_flasher_p1=0.3_p2=0.0/l2/3/*',
+        '/data/ana/Cscd/StartingEvents/NuGen_new/NuMu/medium_energy/IC86_flasher_p1=0.3_p2=0.0/l2/3/*',
+    ): 
+        filepaths += glob(path)
+    create_dataset(sys.argv[2], [filepaths[int(sys.argv[1])]])
