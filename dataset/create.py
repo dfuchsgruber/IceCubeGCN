@@ -261,4 +261,7 @@ if __name__ == '__main__':
         '/data/ana/Cscd/StartingEvents/NuGen_new/NuMu/medium_energy/IC86_flasher_p1=0.3_p2=0.0/l2/3/*',
     ): 
         filepaths += glob(path)
-    create_dataset(sys.argv[2], [filepaths[int(sys.argv[1])]])
+    output = sys.argv[2]
+    num_files = int(sys.argv[3])
+    idx = int(sys.argv[1])
+    create_dataset(output, filepaths[idx * num_files : (idx + 1) * num_files])
