@@ -1,7 +1,9 @@
-
 #!/bin/bash
 
-eval `/cvmfs/icecube.opensciencegrid.org/py3-v4.0.1/setup.sh`
-source ~/myenv2/bin/activate
+echo $1
 cd ~/IceCubeGCN
-python dataset/create.py $1 ~/data/all_energies/$1.hd5 100
+#source ~/myenv2/bin/activate
+export PYTONPATH=$PYTHONPATH:~/myenv2/lib/python2.7/site-packages/
+eval `/cvmfs/icecube.opensciencegrid.org/py2-v3.1.0/setup.sh`
+source /cvmfs/icecube.opensciencegrid.org/py2-v3/RHEL_7_x86_64/metaprojects/simulation/V06-00-00/env-shell.sh dataset/create.sh $1
+
