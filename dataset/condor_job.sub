@@ -13,6 +13,6 @@ request_cpus = 1
 request_memory = 16GB
 
 #queue from seq 0 1 0 | 
-queue from seq 0 1 1577 |
+queue from seq 0 1 15766 |
 
 

@@ -1,0 +1,17 @@
+universe = vanilla
+log = /home/dfuchsgruber/log/concatenate_datasets.log
+error = /home/dfuchsgruber/log/concatenate_datasets.err
+output = /home/dfuchsgruber/log/concatenate_datasets.out
+
+executable = dataset/concatenate_datasets.sh
+arguments =
+
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+
+request_cpus = 1
+request_memory = 16GB
+
+queue
+
+
