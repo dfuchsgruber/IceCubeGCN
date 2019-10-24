@@ -1,0 +1,36 @@
+{
+    "dataset" : {
+        "type" : "hd5",
+        "paths" : {
+            "train" : "/data/user/dfuchsgruber/train.hd5",
+            "validation" : "/data/user/dfuchsgruber/val.hd5",
+            "test" : "/data/user/dfuchsgruber/test.hd5"
+        },
+        "features" : [
+            "ChargeFirstPulse", "ChargeLastPulse", "ChargeMaxPulse",
+            "TimeFirstPulse", "TimeLastPulse", "TimeMaxPulse",
+            "TimeStd"
+        ],
+        "coordinates" : [
+            "COGCenteredVertexX", "COGCenteredVertexY", "COGCenteredVertexZ"
+        ]
+    },
+    "model" : {
+        "type" : "gcn",
+        "hidden_units_graph_convolutions" : [64, 64, 64, 64, 64, 64, 64, 64],
+        "hidden_units_fully_connected" : [1],
+        "use_batchnorm" : true,
+        "use_residual" : true,
+        "dropout_rate" : 0.5
+    },
+    "training" : {
+        "learning_rate" : 1e-2,
+        "min_learning_rate" : 1e-6,
+        "learning_rate_scheduler_patience" : 3,
+        "batch_size" : 64,
+        "epochs" : 10,
+        "directory" : "./training/hd5-{0}",
+        "checkpoint_period" : 1
+    },
+    "seed" : null
+}
