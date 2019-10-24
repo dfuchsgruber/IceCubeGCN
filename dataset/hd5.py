@@ -21,7 +21,7 @@ class ShuffledTorchHD5Dataset(torch.utils.data.Dataset):
         filepath : str
             A path to the hd5 file.
         """
-        self.file = h5py.File(filepath)
+        self.file = h5py.File(filepath, 'r')
 
     def _create_targets(self):
         """ Creates targets for classification based on some filtered indices. 

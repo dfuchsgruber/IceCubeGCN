@@ -10,8 +10,7 @@ when_to_transfer_output = ON_EXIT
 
 request_cpus = 1
 request_gpus = 1
-request_memory = 16GB
+request_memory = 32GB
 
-queue |
-
+queue
 
