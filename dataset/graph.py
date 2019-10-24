@@ -1,11 +1,11 @@
 from .hd5 import *
-
+import os
 
 class ShuffledGraphTorchHD5Dataset(ShuffledTorchHD5Dataset):
     """ Class to represent a pre-shuffled PyTorch dataset originating from an HD5File. """
 
     def __init__(self, filepath, features=['CumulativeCharge', 'Time', 'FirstCharge'], coordinates=['VertexX', 'VertexY', 'VertexZ'], 
-        memmap_directory='./memmaps', close_file=True, 
+        memmap_directory=os.getenv('ICECUBEGCNMEMMAPDIR', default='./memmaps'), close_file=True, 
         class_weights=None):
         """ Initializes the Dataset. 
         
