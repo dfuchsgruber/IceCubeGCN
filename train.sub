@@ -1,0 +1,17 @@
+universe = vanilla
+log = /scratch/dfuchsgruber/log/hd5.log
+error = /scratch/dfuchsgruber/log/hd5.err
+output = /scratch/dfuchsgruber/log/hd5.out
+
+executable = train.sh
+
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+
+request_cpus = 1
+request_gpus = 1
+request_memory = 16GB
+
+queue |
+
+
