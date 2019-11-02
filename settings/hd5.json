@@ -27,7 +27,7 @@
         "learning_rate" : 1e-2,
         "min_learning_rate" : 1e-6,
         "learning_rate_scheduler_patience" : 3,
-        "batch_size" : 64,
+        "batch_size" : 16,
         "epochs" : 10,
         "directory" : "./training/hd5-{0}",
         "checkpoint_period" : 1
