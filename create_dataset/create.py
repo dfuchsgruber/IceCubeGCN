@@ -163,32 +163,18 @@ def process_frame(frame, gcdfile='/cvmfs/icecube.opensciencegrid.org/data/GCD/Ge
 
     ### Create coordinates for each vertex
     C = np.vstack(coordinates.values()).T
-    C, C_mean, C_std = normalize_coordinates(C, weights=None, copy=True)
-    C_cog, C_mean_cog, C_std_cog = normalize_coordinates(C, weights=features['TotalCharge'], copy=True)
+    #C, C_mean, C_std = normalize_coordinates(C, weights=None, copy=True)
+    #C_cog, C_mean_cog, C_std_cog = normalize_coordinates(C, weights=features['TotalCharge'], copy=True)
 
 
     frame['VertexX'] = dataclasses.I3VectorFloat(C[:, 0])
     frame['VertexY'] = dataclasses.I3VectorFloat(C[:, 1])
     frame['VertexZ'] = dataclasses.I3VectorFloat(C[:, 2])
-    frame['COGCenteredVertexX'] = dataclasses.I3VectorFloat(C_cog[:, 0])
-    frame['COGCenteredVertexY'] = dataclasses.I3VectorFloat(C_cog[:, 1])
-    frame['COGCenteredVertexZ'] = dataclasses.I3VectorFloat(C_cog[:, 2])
 
     ### Output centering and true debug information
-    frame['PrimaryXOriginal'] = dataclasses.I3Double(primary.pos.x)
-    frame['PrimaryYOriginal'] = dataclasses.I3Double(primary.pos.y)
-    frame['PrimaryZOriginal'] = dataclasses.I3Double(primary.pos.z)
-    frame['CMeans'] = dataclasses.I3VectorFloat(C_mean)
-    frame['COGCenteredCMeans'] = dataclasses.I3VectorFloat(C_mean_cog)
-
-    ### Compute targets for possible auxilliary tasks, i.e. position and direction of the interaction
-    frame['PrimaryX'] = dataclasses.I3Double((primary.pos.x - C_mean[0]) / C_std[0])
-    frame['PrimaryY'] = dataclasses.I3Double((primary.pos.y - C_mean[1]) / C_std[1])
-    frame['PrimaryZ'] = dataclasses.I3Double((primary.pos.z - C_mean[2]) / C_std[2])
-
-    frame['COGCenteredPrimaryX'] = dataclasses.I3Double((primary.pos.x - C_mean_cog[0]) / C_std_cog[0])
-    frame['COGCenteredPrimaryY'] = dataclasses.I3Double((primary.pos.y - C_mean_cog[1]) / C_std_cog[1])
-    frame['COGCenteredPrimaryZ'] = dataclasses.I3Double((primary.pos.z - C_mean_cog[2]) / C_std_cog[2])
+    frame['PrimaryX'] = dataclasses.I3Double(primary.pos.x)
+    frame['PrimaryY'] = dataclasses.I3Double(primary.pos.y)
+    frame['PrimaryZ'] = dataclasses.I3Double(primary.pos.z)
     frame['PrimaryAzimuth'] = dataclasses.I3Double(primary.dir.azimuth)
     frame['PrimaryZenith'] = dataclasses.I3Double(primary.dir.zenith)
 
@@ -223,14 +209,9 @@ def create_dataset(outfile, infiles, gcdfile='/cvmfs/icecube.opensciencegrid.org
         'NumberVertices',
         # Coordinates and pairwise distances
         'VertexX', 'VertexY', 'VertexZ', 
-        'COGCenteredVertexX', 'COGCenteredVertexY', 'COGCenteredVertexZ',
         # Auxilliary targets
         'PrimaryX', 'PrimaryY', 'PrimaryZ', 
-        'COGCenteredPrimaryX', 'COGCenteredPrimaryY', 'COGCenteredPrimaryZ', 
         'PrimaryAzimuth', 'PrimaryZenith', 'PrimaryEnergy',
-        # Debug stuff
-        'PrimaryXOriginal', 'PrimaryYOriginal', 'PrimaryZOriginal',
-        'CMeans', 'COGCenteredCMeans',
         # Class label
         'classification',
         ], 

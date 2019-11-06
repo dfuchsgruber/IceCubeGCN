@@ -46,8 +46,7 @@ class GraphConvolutionalNetwork(nn.Module):
                 self.layers_fully_connected.append(nn.Linear(D, D_prime, bias=True))
                 if not is_last_layer:
                     self.layers_fully_connected.append(nn.ReLU())
-                else:
-                    self.layers_fully_connected.append(nn.Sigmoid())
+        
         
     def forward(self, X, D, masks):
         """ Forward pass.

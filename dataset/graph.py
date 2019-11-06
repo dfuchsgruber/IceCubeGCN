@@ -62,7 +62,7 @@ class ShuffledGraphTorchHD5Dataset(ShuffledTorchHD5Dataset):
             self.file = filepath
 
     def __len__(self):
-        return self.number_vertices.shape[0]
+        return min(100, self.number_vertices.shape[0])
     
     def __getitem__(self, idx):
         N = self.number_vertices[idx]
@@ -117,8 +117,8 @@ class ShuffledGraphTorchHD5Dataset(ShuffledTorchHD5Dataset):
         features = torch.FloatTensor(features).to(device)
         coordinates = torch.FloatTensor(coordinates).to(device)
         masks = torch.FloatTensor(masks).to(device)
-        targets = torch.FloatTensor(y).to(device).unsqueeze(1)
-        weights = torch.FloatTensor(w).to(device).unsqueeze(1)
+        targets = torch.FloatTensor(y).to(device).long()
+        weights = torch.FloatTensor(w).to(device)
         return (features, coordinates, masks), targets, weights
 
 

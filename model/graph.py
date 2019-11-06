@@ -30,7 +30,7 @@ def padded_vertex_mean(X, masks, vertex_axis=-2, keepdim=True, epsilon=1e-8):
         mean = torch.squeeze(mean, dim=vertex_axis)
     return mean
 
-def padded_softmax(X, masks, axis=-1, keepdim=True, epsilon=1e-8):
+def padded_softmax(X, masks, axis=-2, keepdim=True, epsilon=1e-18):
     """ Applies a softmax that considers padded vertices. 
     
     Paramters:
@@ -181,7 +181,7 @@ class GaussianKernel(nn.Module):
         super().__init__(*args, **kwargs)
         self.inverse_sigma = nn.Parameter(torch.rand(1) * 0.02 + 0.99)
     
-    def forward(self, C, masks):
+    def forward(self, C, masks, epsilon=1e-20):
         """ Forward pass through the kernel. 
         
         Parameters:
@@ -190,15 +190,20 @@ class GaussianKernel(nn.Module):
             Coordinates for all events.
         mask : torch.FloatTensor, shape [batch_size, N, N]
             Padding mask for each adjacency matrix.
+        epsilon : float
+            A small number to make divisons numerically stable.
 
         Returns:
         --------
-        A : torch.FloatTensor, shape [batch_size, N, N]
-            Adjacency matrices for each event.
+        A_hat : torch.FloatTensor, shape [batch_size, N, N]
+            Adjacency matrices for each event, normalized.
         """
-        D = pairwise_distances(C)
-        A = torch.exp(-(self.inverse_sigma**2) * D)
+        distances = pairwise_distances(C)
+        A = torch.exp(-(self.inverse_sigma**2) * distances)
         A = padded_softmax(A, masks, -1)
+        # Normalize adjacency matrices
+        # D = torch.diag_embed((torch.sum(A, -1) + epsilon) ** -.5)
+        # A_hat = torch.matmul(torch.matmul(D, A), D)
         return A
 
 def pairwise_distances(C):
@@ -219,3 +224,42 @@ def pairwise_distances(C):
     # Expand to a fourth dimension in order to calculate distances
     expanded = C.unsqueeze(-2).expand(batch_size, N, N, num_coordinates)
     return ((expanded - expanded.transpose(-3, -2))**2).sum(-1)
+
+"""
+As = [
+    [
+        [1, 2, 3, 0],
+        [2, 3, 4, 0],
+        [3, 4, 7, 0],
+        [0, 0, 0, 0]
+    ],
+    [
+        [10, 11, 12, 13],
+        [11, 12, 13, 23],
+        [12, 13, 23, 24],
+        [13, 23, 24, 25],
+    ]
+]
+
+Ms = [
+    [
+        [1, 1, 1, 0],
+        [1, 1, 1, 0],
+        [1, 1, 1, 0],
+        [0, 0, 0, 0],
+    ],
+    [
+        [1, 1, 1, 1],
+        [1, 1, 1, 1],
+        [1, 1, 1, 1],
+        [1, 1, 1, 1],
+    ]
+]
+
+import numpy as np
+
+As = torch.from_numpy(np.array(As)).float()
+Ms = torch.from_numpy(np.array(Ms)).float()
+
+print(padded_softmax(As, Ms))
+"""

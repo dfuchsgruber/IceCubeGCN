@@ -23,6 +23,16 @@ class ShuffledTorchHD5Dataset(torch.utils.data.Dataset):
         """
         self.file = h5py.File(filepath, 'r')
 
+    def get_number_classes(self):
+        """ Returns how many classes the dataset contains. 
+        
+        Returns:
+        --------
+        num_classes : int
+            How many classes the dataset contains.
+        """
+        return len(np.unique(self.targets))
+
     def _create_targets(self):
         """ Creates targets for classification based on some filtered indices. 
         
@@ -31,7 +41,7 @@ class ShuffledTorchHD5Dataset(torch.utils.data.Dataset):
         targets : ndarray, shape [N]
             Class labels.
         """
-        targets = np.array(self.file['classification'])
+        targets = np.array(self.file['classification'], dtype=np.int)
         targets[targets == 22] = 2
         targets[targets == 23] = 4
         targets[targets == 11] = 0

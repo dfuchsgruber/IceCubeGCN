@@ -2,7 +2,7 @@
 
 import os.path
 from dataset import *
-import util
+import util, loss
 import numpy as np
 import sys
 import os.path
@@ -32,8 +32,8 @@ def get_metrics(y_true, y_pred):
     -----------
     y_true : ndarray, shape [N]
         Ground truth class labels.
-    y_pred : ndarray, shape [N]
-        Predicted class probabilities or hard labels.
+    y_pred : ndarray, shape [N] or ndarray, shape [N, num_classes]
+        Class scores.
         
     Returns:
     --------
@@ -41,13 +41,18 @@ def get_metrics(y_true, y_pred):
         A dict containing values for all metrics. 
     """
     metrics = defaultdict(float)
-    metrics['accuracy'] = accuracy_score(y_true, y_pred >= .5)
+    if len(y_pred.shape) == 1:    
+        labels = y_pred >= .5 # Binary classification
+        metrics['ppr'] = labels.sum() / y_pred.shape[0]
+    else:
+        labels = y_pred.argmax(axis=1) # Multiple class classification
+    metrics['accuracy'] = accuracy_score(y_true, labels)
     try: 
-        metrics['auc'] = roc_auc_score(y_true, y_pred)
-    except: 
+        metrics['auc'] = roc_auc_score(y_true, labels)
+    except Exception as e:
+        #print(e) 
         # AUC is not defined, if only one class is present 
         metrics['auc'] = np.nan
-    metrics['ppr'] = (y_pred >= .5).sum() / y_pred.shape[0]
     return metrics
     
 
@@ -60,7 +65,7 @@ def evaluate_model(model, data_loader, loss_function, logfile=None):
         The classifier to evaluate.
     data_loader : torch.utils.data.DataLoader
         Loader for the dataset to evaluate on.
-    loss_function : torch.nn.Loss
+    loss_function : function
         The loss function that is optimized.
     logfile : file-like or None
         The file to put logs into.
@@ -72,13 +77,20 @@ def evaluate_model(model, data_loader, loss_function, logfile=None):
     """
     model.eval()
     metrics = defaultdict(float)
-    y_pred = np.zeros(len(data_loader.dataset))
+    number_classes = data_loader.dataset.get_number_classes()
+    if number_classes == 2:
+        y_pred = np.zeros(len(data_loader.dataset))
+    else:
+        y_pred = np.zeros((len(data_loader.dataset), number_classes))
     y_true = np.zeros(len(data_loader.dataset))
     total_loss = 0
     for batch_idx, (inputs, y_i, weights) in enumerate(data_loader):
         print(f'\rEvaluating {batch_idx + 1} / {len(data_loader)}', end='\r')
         y_pred_i = model(*inputs)
         loss = loss_function(y_pred_i, y_i, weights)
+
+
+
         y_pred[batch_idx * data_loader.batch_size : (batch_idx + 1) * data_loader.batch_size] = y_pred_i.data.cpu().numpy().squeeze()
         y_true[batch_idx * data_loader.batch_size : (batch_idx + 1) * data_loader.batch_size] = y_i.data.cpu().numpy().squeeze()
         total_loss += loss.item()
@@ -86,6 +98,7 @@ def evaluate_model(model, data_loader, loss_function, logfile=None):
     metrics = get_metrics(y_true, y_pred)
     metrics['loss'] = total_loss / len(data_loader)
     
+    print(metrics)
     values = ' -- '.join(map(lambda metric: f'{metric} : {(metrics[metric]):.4f}', metrics))
     log(logfile, f'\nMetrics: {values}')
     return metrics
@@ -150,9 +163,9 @@ if __name__ == '__main__':
         log(logfile, "Training on GPU")
         log(logfile, "GPU type:\n{}".format(torch.cuda.get_device_name(0)))
     if settings['training']['loss'].lower() == 'binary_crossentropy':
-        loss_function = nn.functional.binary_cross_entropy
+        loss_function = loss.weighted_bce_loss
     elif settings['training']['loss'].lower() == 'categorical_cross_entropy':
-        loss_function = nn.functional.cross_entropy
+        loss_function = loss.weighted_ce_loss
     else:
         raise RuntimeError(f'Unkown loss {settings["training"]["loss"]}')
 
@@ -183,7 +196,7 @@ if __name__ == '__main__':
         for batch_idx, (inputs, targets, weights) in enumerate(train_loader):
             optimizer.zero_grad()
             y_pred = model(*inputs)
-            loss = loss_function(y_pred, targets, weight=weights)
+            loss = loss_function(y_pred, targets, weights)
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
