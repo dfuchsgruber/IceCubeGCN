@@ -41,8 +41,8 @@ if __name__ == '__main__':
                         assert dtypes[key] == get_column(f, key).dtype, f'Different dtype {get_column(f, key)}'
                     dimensions[key] += get_column(f, key).shape[0]
         except Exception as e:
-            print('\nFailed to parse file {path}.\n')
-            raise e
+            print(f'\nFailed to parse file {path}.\n')
+            #raise e
         print(f'\rScanned file {idx} / {len(paths)}', end='\r')
     
     print(f'\nGot these final number of rows: {dimensions}')
