@@ -3,7 +3,7 @@ log = /home/dfuchsgruber/log/create_dataset_all_energies_$(Item).log
 error = /home/dfuchsgruber/log/create_dataset_all_energies_$(Item).err
 output = /home/dfuchsgruber/log/create_dataset_all_energies_$(Item).out
 
-executable = dataset/condor_job.sh
+executable = create_dataset/condor_job.sh
 arguments = $(Item)
 
 should_transfer_files = YES
