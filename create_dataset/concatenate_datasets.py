@@ -29,19 +29,23 @@ if __name__ == '__main__':
     dtypes = {}
     # Calculate the dataset total size beforehand
     for idx, path in enumerate(paths):
-        with h5py.File(path) as f:
-            for key in f.keys():
-                if key == '__I3Index__': continue
-                if idx == 0:
-                    dimensions[key] = 0
-                    dtypes[key] = get_column(f, key).dtype
-                else:
-                    assert key in dimensions, f'Dataset {path} contains key {key} which predecessor were missing.'
-                    assert dtypes[key] == get_column(f, key).dtype, f'Different dtype {get_column(f, key)}'
-                dimensions[key] += get_column(f, key).shape[0]
+        try:
+            with h5py.File(path) as f:
+                for key in f.keys():
+                    if key == '__I3Index__': continue
+                    if idx == 0:
+                        dimensions[key] = 0
+                        dtypes[key] = get_column(f, key).dtype
+                    else:
+                        assert key in dimensions, f'Dataset {path} contains key {key} which predecessor were missing.'
+                        assert dtypes[key] == get_column(f, key).dtype, f'Different dtype {get_column(f, key)}'
+                    dimensions[key] += get_column(f, key).shape[0]
+        except Exception as e:
+            print('\nFailed to parse file {path}.\n')
+            raise e
         print(f'\rScanned file {idx} / {len(paths)}', end='\r')
     
-    print(f'Got these final number of rows: {dimensions}')
+    print(f'\nGot these final number of rows: {dimensions}')
 
     offsets = dict((key, 0) for key in dimensions)
 
