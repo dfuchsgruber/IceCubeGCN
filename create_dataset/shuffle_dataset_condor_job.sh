@@ -3,7 +3,7 @@ log = /home/dfuchsgruber/log/shuffle_dataset.log
 error = /home/dfuchsgruber/log/shuffle_dataset.err
 output = /home/dfuchsgruber/log/shuffle_dataset.out
 
-executable = dataset/shuffle_dataset.sh
+executable = create_dataset/shuffle_dataset.sh
 arguments =
 
 should_transfer_files = YES
