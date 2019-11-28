@@ -95,9 +95,8 @@ class SparseDataset(Dataset):
         node_coordinates = torch.tensor([
             self.file[coordinate][offset : offset + number_vertices] for coordinate in ('VertexX', 'VertexY', 'VertexZ')
         ]).T
-        edges = kneighbors_graph(
-            node_coordinates, min(number_vertices - 1, self.num_nearest_neighbours), metric='mahalanobis', metric_params={'VI' : self.metric}
-            ).nonzero()
+        adjacency_list = np.array(self.file['AdjacencyList'][offset : offset + number_vertices])[:, : self.num_nearest_neighbours]
+        edges = np.array([adjacency_list.flatten(), np.arange(adjacency_list.shape[0]).repeat(adjacency_list.shape[1])], dtype=np.int16)
         return Data(x=node_features, edge_index=torch.tensor(edges, dtype=torch.long), pos=node_coordinates, 
                     y=torch.tensor([self.targets[idx]], dtype=torch.long), weight=torch.tensor([self.weights[idx]]))
         
