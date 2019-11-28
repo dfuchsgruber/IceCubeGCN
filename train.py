@@ -15,7 +15,8 @@ import time
 from sklearn.metrics import roc_auc_score, accuracy_score, f1_score, confusion_matrix
 
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
+import torch_geometric.data
 from torch import nn
 
 def log(logfile, string):
@@ -84,16 +85,15 @@ def evaluate_model(model, data_loader, loss_function, logfile=None):
         y_pred = np.zeros((len(data_loader.dataset), number_classes))
     y_true = np.zeros(len(data_loader.dataset))
     total_loss = 0
-    for batch_idx, (inputs, y_i, weights) in enumerate(data_loader):
-        print(f'\rEvaluating {batch_idx + 1} / {len(data_loader)}', end='\r')
-        y_pred_i = model(*inputs)
-        loss = loss_function(y_pred_i, y_i, weights)
-
-
-
-        y_pred[batch_idx * data_loader.batch_size : (batch_idx + 1) * data_loader.batch_size] = y_pred_i.data.cpu().numpy().squeeze()
-        y_true[batch_idx * data_loader.batch_size : (batch_idx + 1) * data_loader.batch_size] = y_i.data.cpu().numpy().squeeze()
-        total_loss += loss.item()
+    with torch.no_grad():
+        for batch_idx, data in enumerate(data_loader):
+            data = data.to('cuda')
+            print(f'\rEvaluating {batch_idx + 1} / {len(data_loader)}', end='\r')
+            y_pred_i = model(data)
+            loss = loss_function(y_pred_i, data.y, data.weight)
+            y_pred[batch_idx * data_loader.batch_size : (batch_idx + 1) * data_loader.batch_size] = y_pred_i.data.cpu().numpy().squeeze()
+            y_true[batch_idx * data_loader.batch_size : (batch_idx + 1) * data_loader.batch_size] = data.y.data.cpu().numpy().squeeze()
+            total_loss += loss.item()
 
     metrics = get_metrics(y_true, y_pred)
     metrics['loss'] = total_loss / len(data_loader)
@@ -112,16 +112,14 @@ if __name__ == '__main__':
     parser.add_argument('-i', type=int, help='Index of the file in the directory to use as configuration file. Only considered if "--array" is set.')
     args = parser.parse_args()
 
-    default_settings_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'default_settings.json')
+
     if args.array:
         config_path = glob(args.config)[args.i]
     else:
         config_path = args.config
     
-    with open(default_settings_path) as f:
-        settings = json.load(f)
     with open(config_path) as f:
-        util.dict_update(settings, json.load(f))
+        settings = json.load(f)
 
     # Create a logfile
     if settings['training']['logfile']:
@@ -144,6 +142,7 @@ if __name__ == '__main__':
         print(f'Seeded with the model id ({model_idx})')
 
     np.random.seed(settings['seed'] & 0xFFFFFFFF)
+    torch.manual_seed(settings['seed'] & 0xFFFFFFFF)
 
     # Save a copy of the settings
     with open(os.path.join(training_dir, 'config.json'), 'w+') as f:
@@ -153,9 +152,9 @@ if __name__ == '__main__':
     batch_size = settings['training']['batch_size']
 
     data_train, data_val, data_test = util.dataset_from_config(settings)
-    train_loader = DataLoader(data_train, batch_size=batch_size, shuffle=False, collate_fn=data_train.collate, drop_last=False)
-    val_loader = DataLoader(data_val, batch_size=batch_size, shuffle=False, collate_fn=data_val.collate, drop_last=False)
-    test_loader = DataLoader(data_test, batch_size=batch_size, shuffle=False, collate_fn=data_test.collate, drop_last=False)
+    train_loader = torch_geometric.data.DataLoader(data_train, batch_size=batch_size, shuffle=True, drop_last=False)
+    val_loader = torch_geometric.data.DataLoader(data_val, batch_size=batch_size, shuffle=False, drop_last=False)
+    test_loader = torch_geometric.data.DataLoader(data_test, batch_size=batch_size, shuffle=False, drop_last=False)
 
     model = util.model_from_config(settings)
     if torch.cuda.is_available():
@@ -193,15 +192,16 @@ if __name__ == '__main__':
         running_accuracy = 0
         model.train()
         t0 = time.time()
-        for batch_idx, (inputs, targets, weights) in enumerate(train_loader):
+        for batch_idx, data in enumerate(train_loader):
             optimizer.zero_grad()
-            y_pred = model(*inputs)
-            loss = loss_function(y_pred, targets, weights)
+            data = data.to('cuda')
+            y_pred = model(data)
+            loss = loss_function(y_pred, data.y, data.weight)
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
-            targets = targets.data.cpu().numpy()
-            y_pred = y_pred.data.cpu().numpy()
+            targets = data.y.cpu().numpy()
+            y_pred = y_pred.detach().cpu().numpy()
             batch_metrics = get_metrics(targets, y_pred)
             for metric, value in batch_metrics.items():
                 training_metrics[metric].append(value)

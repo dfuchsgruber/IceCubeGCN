@@ -1,0 +1,38 @@
+{
+    "dataset" : {
+        "directory" : "../data",
+        "file" : "train.hd5",
+        "dom_features" : {
+            "ChargeFirstPulse" : 1.0, 
+            "ChargeLastPulse" : 1.0,
+            "ChargeMaxPulse"  : 1.0,
+            "TimeFirstPulse" : 1.0,
+            "TimeLastPulse" : 1.0,
+            "TimeMaxPulse" : 1.0,
+            "TimeStd" : 1.0,
+            "VertexX" : 1.0,
+            "VertexY" : 1.0,
+            "VertexZ" : 1.0
+        },
+        "num_nearest_neighbours" : 9
+    },
+    "model" : {
+        "hidden_sizes" : [64, 64, 64],
+        "linear_sizes" : [64, 5],
+        "use_batchnorm" : true
+    },
+    "training" : {
+        "loss" : "categorical_cross_entropy",
+        "min_learning_rate" : 1e-6,
+        "learning_rate" : 5e-3,
+        "learning_rate_scheduler" : "reduce_on_plateau",
+        "learning_rate_scheduler_patience" : 2,
+        "learning_rate_decay" : 1e-5,
+        "batch_size" : 64,
+        "epochs" : 5,
+        "directory" : "./hd5_{0}/",
+        "checkpoint_period" : 1,
+        "logfile" : null
+    },
+    "seed" : null
+}

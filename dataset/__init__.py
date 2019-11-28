@@ -1,7 +1,6 @@
-from .hd5 import *
-from .graph import *
+from .sparse import *
 
 __all__ = [
-    'ShuffledGraphTorchHD5Dataset',
-    'ShuffledGraphTorchHD5DatasetWithGraphFeatures',
+    'SparseDataset',
+    'z_adjusted_metric',
 ]

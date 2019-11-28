@@ -39,8 +39,5 @@ def weighted_ce_loss(predictions, targets, weights):
         The binary cross entropy loss over all instances.
     """
     loss = torch.nn.functional.cross_entropy(predictions, targets, reduction='none')
-    print(loss)
     loss *= weights
-    print(loss)
-    exit(0)
     return loss.mean()

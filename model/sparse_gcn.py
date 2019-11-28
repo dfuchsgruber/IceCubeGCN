@@ -26,7 +26,7 @@ class GaussianKernelDistance(torch.nn.Module):
             Distances between the nodes after applying a gaussian kernel.
         """
         edge_positions = pos[edge_idxs]
-        distances = torch.dist(edge_positions[0], edge_positions[1])
+        distances = torch.norm(edge_positions[0] - edge_positions[1], p=2, dim=-1)
         edge_weights = torch.exp(-(self.inverse_sigma * distances**2))
         return edge_weights
 
