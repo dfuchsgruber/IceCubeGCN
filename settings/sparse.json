@@ -32,7 +32,7 @@
         "learning_rate_decay" : 1e-5,
         "batch_size" : 64,
         "epochs" : 10,
-        "directory" : "./hd5_{0}/",
+        "directory" : "./training/hd5_{0}/",
         "checkpoint_period" : 1,
         "logfile" : null
     },
