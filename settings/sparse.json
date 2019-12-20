@@ -1,6 +1,5 @@
 {
     "dataset" : {
-        "directory" : "../data",
         "train" : "train_precomputed.hd5",
         "val" : "val_precomputed.hd5",
         "test" : "test_precomputed.hd5",
