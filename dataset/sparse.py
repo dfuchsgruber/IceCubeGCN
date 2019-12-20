@@ -8,6 +8,7 @@ import numpy as np
 from sklearn.neighbors import kneighbors_graph
 from sklearn.utils.class_weight import compute_sample_weight
 import os.path
+from time import time
 
 horizontal_dom_spacing = 125
 vertical_dom_spacing = 17
@@ -17,8 +18,7 @@ z_adjusted_metric = np.diag([1.0, 1.0, horizontal_dom_spacing / vertical_dom_spa
 
 class SparseDataset(Dataset):
 
-    def __init__(self, root, path, dom_features, *args, num_nearest_neighbours=8, 
-                metric=z_adjusted_metric, idxs=None, **kwargs):
+    def __init__(self, root, path, dom_features, *args, num_nearest_neighbours=8, idxs=None, **kwargs):
         """ Initializes the sparse dataset. 
         
         Parameters:
@@ -28,14 +28,12 @@ class SparseDataset(Dataset):
         path : str
             A path to a hd5 file, relative to the data directory of the `root` parameter,
             containing all events that are to be considered.
-        dom_features : dict
+        dom_features : OrderedDict
             A dict mapping per-dom feature columns of the hd5 data to scaling factors.
         num_nearest_neighbours : int
             How many DOMs any DOM is connected to.
         idxs : ndarray, shape [N] or str or None
             A subset of indices that are considered. This is useful if the data is preprocessed.
-        metric : ndarray, shape [n_coordinates, n_coordinates]
-            The metric for constructing the k-nearest neighbour graph.
         """
         super().__init__(root, *args, **kwargs)
         self.dom_features = dom_features
@@ -61,8 +59,6 @@ class SparseDataset(Dataset):
         self.weights = np.zeros(self.targets.shape[0])
         self.weights[self.idxs] = compute_sample_weight('balanced', self.targets[self.idxs])
 
-        self.metric = metric
-
     def _create_targets(self):
         """ Creates targets for classification based on some filtered indices. 
         
@@ -77,18 +73,17 @@ class SparseDataset(Dataset):
         targets[targets == 11] = 0
         assert len(np.unique(targets)) == 5
         return targets
-
-
     
     def __len__(self):
         return self.idxs.shape[0]
 
 
-    def get(self, idx):
+    def get(self, dataset_idx):
         """ Gets a graph instance from the dataset. """
-        idx = self.idxs[idx]
+        idx = self.idxs[dataset_idx]
         offset = self.offsets[idx]
         number_vertices = self.number_vertices[idx]
+
         node_features = torch.tensor([
             self.file[feature][offset : offset + number_vertices] * scaling for (feature, scaling) in self.dom_features.items()
         ]).T
@@ -106,3 +101,70 @@ class SparseDataset(Dataset):
 
     def _process(self):
         pass
+
+
+def create_memmap_1d(memmap_file, hd5_file, features, dtype=np.float64):
+    """ Creates a memmap of 1d features or loads the memmap if it already exists.
+    
+    Parameters:
+    -----------
+    memmap_file : str
+        Path to the memmap file to create.
+    hd5_file : h5py.File
+        The hd5f file that contains data.
+    features : iterable
+        An iterable of feature columns to copy.
+    dtype : np.dtype
+        The numpy datatype.
+
+    Returns:
+    --------
+    memmap : np.memmap, shape [N, len(features)]
+        Feature matrix.
+    """
+    # Check that sizes of all feature columns match
+    feature_sizes = np.array([hd5_file[key].shape for key in features])
+    assert (feature_sizes[0] == feature_sizes).all()
+
+    if os.path.exists(memmap_file):
+        memmap = np.memmap(memmap_file, 'r', shape=(feature_sizes[0], len(features)), dtype=dtype)
+    else:
+        # Create a new memmap
+        print(f'Creating memmap {memmap_file}...')
+        memmap = np.memmap(memmap_file, 'w+', shape=(feature_sizes[0], len(features)), dtype=dtype)
+        for idx, key in enumerate(features):
+            print(f'\rCopying feature {feature}...', end='\r')
+            memmap[:, idx] = hd5_file.get(feature)
+    return memmap
+
+def create_memmap_2d(memmap_file, hd5_file, feature, dtype=np.int16):
+    """ Creates a memmap from a 2d feature matrix in a hd5 file.
+    
+    Parameters:
+    -----------
+    memmap_file : str
+        Path to the memmap file to create.
+    hd5_file : h5py.File
+        The hd5f file that contains data.
+    feature : str
+        The feature that contains a 2d data matrix.
+    dtype : np.dtype
+        The numpy datatype.
+
+    Returns:
+    --------
+    memmap : np.memmap, shape [N, D]
+        The 2d feature matrix as numpy memmap.
+    """
+    assert len(hd5_file[feature].shape) == 2
+
+    if os.path.exists(memmap_file):
+        memmap = np.memmap(memmap_file, 'r', shape=hd5_file[feature].shape, dtype=dtype)
+    else:
+        # Create a new memmap
+        print(f'Creating memmap {memmap_file}...')
+        memmap = np.memmap(memmap_file, 'w+', shape=hd5_file[feature].shape, dtype=dtype)
+        for idx in range(hd5_file[feature].shape[1]):
+            print(f'\rCopying column {idx}...', end='\r')
+            memmap[:, idx] = hd5_file[feature][:, idx]
+    return memmap

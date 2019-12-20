@@ -152,7 +152,7 @@ if __name__ == '__main__':
     batch_size = settings['training']['batch_size']
 
     data_train, data_val, data_test = util.dataset_from_config(settings)
-    train_loader = torch_geometric.data.DataLoader(data_train, batch_size=batch_size, shuffle=True, drop_last=False)
+    train_loader = torch_geometric.data.DataLoader(data_train, batch_size=batch_size, shuffle=False, drop_last=False)
     val_loader = torch_geometric.data.DataLoader(data_val, batch_size=batch_size, shuffle=False, drop_last=False)
     test_loader = torch_geometric.data.DataLoader(data_test, batch_size=batch_size, shuffle=False, drop_last=False)
 
@@ -202,6 +202,14 @@ if __name__ == '__main__':
             running_loss += loss.item()
             targets = data.y.cpu().numpy()
             y_pred = y_pred.detach().cpu().numpy()
+
+            # Calculate the variance accross predictions to ensure that the model does not overfit a single-class output
+            if len(y_pred.shape) == 1:    
+                y_pred_labels = y_pred >= .5 # Binary classification
+                metrics['ppr'] = labels.sum() / y_pred.shape[0]
+            else:
+                y_pred_labels = y_pred.argmax(axis=1) # Multiple class classification
+
             batch_metrics = get_metrics(targets, y_pred)
             for metric, value in batch_metrics.items():
                 training_metrics[metric].append(value)
@@ -210,7 +218,7 @@ if __name__ == '__main__':
             dt = time.time() - t0
             eta = dt * (len(train_loader) / (batch_idx + 1) - 1)
 
-            print(f'\r{batch_idx + 1} / {len(train_loader)}: batch_loss {loss.item():.4f} -- epoch_loss {running_loss / (batch_idx + 1):.4f} -- epoch acc {running_accuracy / (batch_idx + 1):.4f} -- mean of preds / targets {y_pred.mean():.4f} / {targets.mean():.4f} # ETA: {int(eta):6}s      ', end='\r')
+            print(f'\r{batch_idx + 1} / {len(train_loader)}: batch_loss {loss.item():.4f} -- epoch_loss {running_loss / (batch_idx + 1):.4f} -- epoch acc {running_accuracy / (batch_idx + 1):.4f} -- std of predicted labels {y_pred_labels.std():.4f} -- # ETA: {int(eta):6}s      ', end='\r')
 
         # Validation
         log(logfile, '\n### Validation:')    

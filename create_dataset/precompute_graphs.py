@@ -71,5 +71,5 @@ if __name__ == '__main__':
         for idx in tqdm(range(num_vertices.shape[0])):
             C = get_coordinates(f, vertex_offsets, num_vertices, idx)
             adjacency_list = compute_adjacency_list(C, k=k)
-            dset[vertex_offsets[idx] : vertex_offsets[idx] + num_vertices[idx]] = adjacency_list
+            dset[vertex_offsets[idx] : vertex_offsets[idx] + num_vertices[idx], : adjacency_list.shape[1]] = adjacency_list
 

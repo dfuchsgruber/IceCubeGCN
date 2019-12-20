@@ -1,7 +1,7 @@
 import json
 from dataset import *
 from model import *
-from collections import Mapping
+from collections import Mapping, OrderedDict
 import torch.utils.data
 import os
 import numpy as np
@@ -44,24 +44,16 @@ def dataset_from_config(config):
     
     """
     dataset_config = config['dataset']
-
-    dataset = SparseDataset(
-        dataset_config.get('directory', os.getenv('ICECUBEGCNDATADIR', '../data')),
-        dataset_config.get('file', 'all_energies.hd5'),
-        dataset_config['dom_features'],
-        num_nearest_neighbours=dataset_config.get('num_nearest_neighbours', 8),
-        metric=np.array(dataset_config.get('metric', z_adjusted_metric)),
-        idxs=None,
-    )
-
-    val_portion = dataset_config.get('validation_portion', 0.1)
-    test_portion = dataset_config.get('testing_portion', 0.1)
-    assert (test_portion + val_portion) < 1.0
-    val_length = int(len(dataset) * val_portion)
-    test_length = int(len(dataset) * test_portion)
-    train_length = len(dataset) - val_length - test_length
-
-    return torch.utils.data.random_split(dataset, [train_length, val_length, test_length])
+    data_train, data_val, data_test = [
+        SparseDataset(
+            dataset_config.get('directory', os.getenv('ICECUBEGCNDATADIR', '../data')),
+            dataset_config[key],
+            OrderedDict(dataset_config['dom_features']),
+            num_nearest_neighbours=dataset_config.get('num_nearest_neighbours', 8),
+            idxs=None,
+        ) for key in ('train', 'val', 'test') 
+    ]
+    return data_train, data_val, data_test
     
 
 def model_from_config(config):
